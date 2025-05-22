@@ -1,0 +1,13 @@
+volatility-prediction/
+├── data/                  # Raw and processed data
+├── notebooks/             # Jupyter notebooks
+│   └── 01_data_eda.ipynb
+├── src/                   # Source code
+│   ├── __init__.py
+│   ├── data_loader.py
+│   ├── feature_engineering.py
+│   └── model.py
+├── requirements.txt       # Python dependencies
+├── .gitignore
+├── README.md              # Project description
+└── main.py                # Main script
