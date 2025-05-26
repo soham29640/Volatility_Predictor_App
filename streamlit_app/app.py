@@ -10,7 +10,41 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 st.set_page_config(page_title="Volatility Risk Dashboard", layout="wide")
-st.title("📊 Volatility Prediction and Risk Classification Dashboard")
+import streamlit as st
+
+st.title("📈 Stock Volatility Prediction App")
+
+st.markdown("""
+### 📊 What is Volatility?
+Volatility is a measure of how much a stock's price moves up or down over time.  
+High volatility means higher risk (and possibly higher return), while low volatility means more stable price movements.
+
+This app helps you **predict future volatility** of a stock using your uploaded historical price data.
+
+---
+
+### 📁 How to Use
+1. Upload a `.csv` file containing historical stock data.
+2. Your file should have at least one of the following:
+   - **'Close'** prices (preferred)
+   - OR **Log returns** (optional, we can calculate it)
+
+The app will:
+- Compute log returns if needed
+- Predict the stock's **future volatility**
+- Show the trend of volatility to help you assess risk
+
+---
+
+### 🧮 Example of Required CSV Format
+
+| Date       | Open   | High   | Low    | Close  | Volume |
+|------------|--------|--------|--------|--------|--------|
+| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  |
+| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  |
+| ...        | ...    | ...    | ...    | ...    | ...    |
+
+""")
 
 st.sidebar.header("Upload Returns Data")
 file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
