@@ -1,2 +1,9 @@
-pip install -r requirements.txt
-jupyter console
+arch
+pandas 
+numpy 
+yfinance 
+matplotlib 
+seaborn
+scikit-learn
+tensorflow
+streamlit

@@ -1,13 +1,33 @@
 volatility-prediction/
-├── data/                  # Raw and processed data
-├── notebooks/             # Jupyter notebooks
-│   └── 01_data_eda.ipynb
-├── src/                   # Source code
-│   ├── __init__.py
-│   ├── data_loader.py
-│   ├── feature_engineering.py
-│   └── model.py
-├── requirements.txt       # Python dependencies
-├── .gitignore
-├── README.md              # Project description
-└── main.py                # Main script
+├── data/
+│   ├── raw/                         # Original OHLCV CSV files
+│   └── processed/
+│       └── returns.csv             # Processed log returns
+│
+├── notebooks/
+│   └── 01_data_eda.ipynb          # Initial EDA notebook (optional)
+│
+├── outputs/
+│   ├── predictions/
+│   │   ├── garch_predictions.csv
+│   │   ├── lstm_predictions.csv
+│   │   ├── attention_predictions.csv
+│   │   
+│   ├── plots/
+│   │   └── model_rmse_comparison.png
+│   └── evaluation_metrics.csv
+│
+├── src/
+│   ├── data_loader.py             # Loads and prepares log return data
+│   ├── feature_engineering.py     # Optional features (rolling mean etc.)
+│   ├── model_garch.py             # GARCH model + forecasting
+│   ├── model_lstm.py              # LSTM using TensorFlow
+│   ├── model_attention.py         # Attention-based LSTM
+│   ├── evaluate_models.py         # Evaluation metrics (RMSE, MAE, etc.)
+│   └── compare_models.py          # Plot RMSE comparison
+│   # utils.py (optional later)
+│
+├── requirements.txt               # List of required libraries
+├── .gitignore                     # Optional for Git
+└── README.md                      # Project overview & instructions
+
