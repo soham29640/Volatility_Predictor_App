@@ -5,4 +5,4 @@ yfinance
 matplotlib
 seaborn
 scikit-learn
-tensorflow==2.15.0  # Only works with Python <= 3.11
+
