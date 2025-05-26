@@ -1,9 +1,8 @@
 arch
-pandas 
-numpy 
-yfinance 
-matplotlib 
+pandas
+numpy
+yfinance
+matplotlib
 seaborn
 scikit-learn
-streamlit
-tensorflow==2.15.0
+tensorflow==2.15.0  # Only works with Python <= 3.11
