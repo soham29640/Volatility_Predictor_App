@@ -13,36 +13,28 @@ st.set_page_config(page_title="Volatility Risk Dashboard", layout="wide")
 import streamlit as st
 
 st.title("📈 Stock Volatility Prediction App")
-
 st.markdown("""
-### 📊 What is Volatility?
-Volatility is a measure of how much a stock's price moves up or down over time.  
-High volatility means higher risk (and possibly higher return), while low volatility means more stable price movements.
-
-This app helps you **predict future volatility** of a stock using your uploaded historical price data.
-
----
-
 ### 📁 How to Use
 1. Upload a `.csv` file containing historical stock data.
-2. Your file should have at least one of the following:
-   - **'Close'** prices (preferred)
-   - OR **Log returns** (optional, we can calculate it)
+2. Your file **must include a column named `'log_return'`**, which represents the log returns of the stock.
+
+> ⚠️ If your data doesn't contain log returns, please compute it first using the formula:  
+> `log_return = ln(Close / Close_previous_day)`
 
 The app will:
-- Compute log returns if needed
+- Use your provided `log_return` data
 - Predict the stock's **future volatility**
-- Show the trend of volatility to help you assess risk
+- Visualize the volatility trend to help you assess risk
 
 ---
 
 ### 🧮 Example of Required CSV Format
 
-| Date       | Open   | High   | Low    | Close  | Volume |
-|------------|--------|--------|--------|--------|--------|
-| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  |
-| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  |
-| ...        | ...    | ...    | ...    | ...    | ...    |
+| Date       | Open   | High   | Low    | Close  | Volume | log_return |
+|------------|--------|--------|--------|--------|--------|-------------|
+| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  | NaN         |
+| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  | 0.0325      |
+| ...        | ...    | ...    | ...    | ...    | ...    | ...         |
 
 """)
 
