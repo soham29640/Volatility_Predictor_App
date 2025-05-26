@@ -5,5 +5,5 @@ yfinance
 matplotlib 
 seaborn
 scikit-learn
-tensorflow
 streamlit
+tensorflow==2.15.0
