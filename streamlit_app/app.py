@@ -45,6 +45,7 @@ else:
 st.subheader("Raw Data Preview(by default)")
 st.dataframe(data.tail(10))
 
+data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
 log_return = data['log_return'].dropna().values.reshape(-1, 1)
 log_return_squared = log_return ** 2
 
