@@ -40,7 +40,7 @@ file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
 if file:
     data = pd.read_csv(file, index_col=0, parse_dates=True)
 else:
-    data = pd.read_csv("data/processed/returns.csv", index_col=0, parse_dates=True)
+    data = pd.read_csv("data/raw/AAPL.csv", index_col=0, parse_dates=True)
 
 st.subheader("Raw Data Preview(by default)")
 st.dataframe(data.tail(10))
