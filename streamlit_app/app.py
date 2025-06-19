@@ -65,8 +65,10 @@ forecast = model_fit.forecast(horizon=10)
 forecasted_variance = forecast.variance.iloc[-1]
 forecasted_volatility = np.sqrt(forecasted_variance)
 
-threshold = np.percentile(forecasted_volatility, 75)
 tomorrow_vol = forecasted_volatility.iloc[0]
+
+historical_volatility = data['log_return'].rolling(window=20).std().dropna()
+threshold = np.percentile(historical_volatility, 75)
 risk_level = "High Risk" if tomorrow_vol > threshold else "Low Risk"
 
 st.metric("Predicted Volatility (Tomorrow)", f"{tomorrow_vol:.6f}")
