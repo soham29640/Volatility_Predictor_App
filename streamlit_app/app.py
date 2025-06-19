@@ -15,14 +15,10 @@ import streamlit as st
 st.title("📈 Stock Volatility Prediction App")
 st.markdown("""
 ### 📁 How to Use
-1. Upload a `.csv` file containing historical stock data.
-2. Your file **must include a column named `'log_return'`**, which represents the log returns of the stock.
-
-> ⚠️ If your data doesn't contain log returns, please compute it first using the formula:  
-> `log_return = ln(Close / Close_previous_day)`
+Upload a `.csv` file containing historical stock data.
 
 The app will:
-- Use your provided `log_return` data
+- Compute : log_return = ln(Close / Close_previous_day)
 - Predict the stock's **future volatility**
 - Visualize the volatility trend to help you assess risk
 
@@ -30,11 +26,11 @@ The app will:
 
 ### 🧮 Example of Required CSV Format
 
-| Date       | Open   | High   | Low    | Close  | Volume | log_return |
-|------------|--------|--------|--------|--------|--------|-------------|
-| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  | NaN         |
-| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  | 0.0325      |
-| ...        | ...    | ...    | ...    | ...    | ...    | ...         |
+| Date       | Open   | High   | Low    | Close  | Volume | 
+|------------|--------|--------|--------|--------|--------|
+| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  |
+| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  | 
+| ...        | ...    | ...    | ...    | ...    | ...    | 
 
 """)
 
