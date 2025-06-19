@@ -31,7 +31,6 @@ The app will:
 | 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  |
 | 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  | 
 | ...        | ...    | ...    | ...    | ...    | ...    | 
-
 """)
 
 st.sidebar.header("Settings")
@@ -44,19 +43,20 @@ if file:
     data = pd.read_csv(file, index_col=0, parse_dates=True)
 else:
     data = pd.read_csv("data/raw/AAPL.csv", index_col=0, parse_dates=True)
-    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
 
-st.subheader("Raw Data Preview(by default)")
-st.dataframe(data.tail(10))
-
+data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
 data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
-data = data.tail(num_days) 
-data.dropna(inplace=True)
-log_return = data['log_return'].dropna().values.reshape(-1, 1)
+data = data.tail(num_days)
+data.dropna(subset=['log_return'], inplace=True)
 
+log_return = data['log_return'].values
 
-model = arch_model(log_return,vol = 'GARCH', p=1,q=1)
-model_fit = model.fit(disp = 'off')
+if len(log_return) < 30:
+    st.error("Not enough data after filtering. Try increasing the number of days.")
+    st.stop()
+
+model = arch_model(log_return, vol='GARCH', p=1, q=1)
+model_fit = model.fit(disp='off')
 
 forecast = model_fit.forecast(horizon=10)
 forecasted_variance = forecast.variance.iloc[-1]
@@ -65,13 +65,12 @@ forecasted_volatility = np.sqrt(forecasted_variance)
 threshold = np.percentile(forecasted_volatility, 75)
 tomorrow_vol = forecasted_volatility.iloc[0]
 risk_level = "High Risk" if tomorrow_vol > threshold else "Low Risk"
-print("Predicted Risk Level:", risk_level)
 
 st.metric("Predicted Volatility (Tomorrow)", f"{tomorrow_vol:.6f}")
 st.metric("Risk Level", risk_level)
 
-fig,ax = plt.subplots(figsize = (12,6))
-ax.plot(forecasted_volatility,color = 'green', label = 'Last 10 Days Volatility')
+fig, ax = plt.subplots(figsize=(12, 6))
+ax.plot(forecasted_volatility, color='green', label='Last 10 Days Volatility')
 ax.set_title("10 days predictions from GARCH(1,1) Model")
 ax.set_xlabel("Date")
 ax.set_ylabel("Volatility")
