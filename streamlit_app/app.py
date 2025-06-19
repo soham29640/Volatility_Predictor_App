@@ -24,7 +24,7 @@ The app will:
 
 ---
 
-### 🧮 Example of Required CSV Format
+### 📊 Example of Required CSV Format
 
 | Date       | Open   | High   | Low    | Close  | Volume | 
 |------------|--------|--------|--------|--------|--------|
@@ -54,9 +54,12 @@ st.dataframe(data.tail(10))
 
 log_return = data['log_return'].values
 
-if len(log_return) < 30:
-    st.error("Not enough data after filtering. Try increasing the number of days.")
+if len(data) < 30:
+    st.error("❌ Not enough data to fit GARCH model. Please select more days.")
     st.stop()
+
+if num_days < 90:
+    st.warning("⚠️ Volatility predictions may be unreliable with less than 90 days of data.")
 
 model = arch_model(log_return, vol='GARCH', p=1, q=1)
 model_fit = model.fit(disp='off')
