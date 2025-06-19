@@ -34,7 +34,7 @@ The app will:
 """)
 
 st.sidebar.header("Settings")
-num_days = st.sidebar.slider("Select number of past days to use", min_value=100, max_value=2000, value=500, step=50)
+num_days = st.sidebar.slider("Select number of past days to use", min_value=0, max_value=2000, value=500, step=50)
 
 st.sidebar.header("Upload Returns Data")
 file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
