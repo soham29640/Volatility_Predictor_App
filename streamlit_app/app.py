@@ -86,9 +86,6 @@ ax.tick_params(axis='x', rotation=45)
 fig1.tight_layout()
 st.pyplot(fig1)
 
-st.markdown("---")
-st.caption("Built with using Garch model")
-
 fig2, ax2 = plt.subplots(figsize=(12, 4))
 ax2.plot(historical_volatility[-100:].values, label='Historical Volatility')
 ax2.axhline(threshold, color='red', linestyle='--', label='75% Threshold')
@@ -96,3 +93,7 @@ ax2.axhline(tomorrow_vol, color='blue', linestyle=':', label="Tomorrow's Predict
 ax2.legend()
 ax2.set_title("Volatility Comparison")
 st.pyplot(fig2)
+
+
+st.markdown("---")
+st.caption("Built with using Garch model")
