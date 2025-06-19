@@ -41,13 +41,15 @@ if file:
     data = pd.read_csv(file, index_col=0, parse_dates=True)
 else:
     data = pd.read_csv("data/raw/AAPL.csv", index_col=0, parse_dates=True)
+    data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
 
 st.subheader("Raw Data Preview(by default)")
 st.dataframe(data.tail(10))
 
 data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
+data.dropna(inplace=True)
+
 log_return = data['log_return'].dropna().values.reshape(-1, 1)
-log_return_squared = log_return ** 2
 
 model = arch_model(log_return,vol = 'GARCH', p=1,q=1)
 model_fit = model.fit(disp = 'off')
