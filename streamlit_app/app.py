@@ -34,6 +34,9 @@ The app will:
 
 """)
 
+st.sidebar.header("Settings")
+num_days = st.sidebar.slider("Select number of past days to use", min_value=100, max_value=2000, value=500, step=50)
+
 st.sidebar.header("Upload Returns Data")
 file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
 
@@ -47,9 +50,10 @@ st.subheader("Raw Data Preview(by default)")
 st.dataframe(data.tail(10))
 
 data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
+data = data.tail(num_days) 
 data.dropna(inplace=True)
-
 log_return = data['log_return'].dropna().values.reshape(-1, 1)
+
 
 model = arch_model(log_return,vol = 'GARCH', p=1,q=1)
 model_fit = model.fit(disp = 'off')
