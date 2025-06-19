@@ -49,6 +49,9 @@ data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
 data = data.tail(num_days)
 data.dropna(subset=['log_return'], inplace=True)
 
+st.subheader("Raw Data Preview (last 10 rows)")
+st.dataframe(data.tail(10))
+
 log_return = data['log_return'].values
 
 if len(log_return) < 30:
