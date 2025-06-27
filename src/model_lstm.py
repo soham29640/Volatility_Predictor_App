@@ -38,6 +38,7 @@ model.compile(optimizer='adam', loss='mse')
 history = model.fit(X, y, epochs=50, batch_size=16, verbose=1)
 
 model.save("models/lstm_model.h5")
+model.save("models/lstm_model.keras")
 
 predicted_vol = model.predict(X)
 preds = predicted_vol.flatten()

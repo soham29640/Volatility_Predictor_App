@@ -1,13 +1,16 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Input, LSTM, Dense, Lambda
+from tensorflow.keras.layers import Input, LSTM, Dense
 from tensorflow.keras.activations import softmax
-import random
 import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__),'..'))
+from layers.custom_attention import AttentionSum 
+import random
+import matplotlib.pyplot as plt
 
 SEED = 42
 os.environ['PYTHONHASHSEED'] = str(SEED)
@@ -17,18 +20,18 @@ tf.random.set_seed(SEED)
 
 data = pd.read_csv("data/processed/returns.csv", index_col=0, parse_dates=True)
 log_return = data['log_return'].dropna().values.reshape(-1, 1)
-log_return_squared = log_return ** 2
+log_return_squared = log_return**2
 
 scaler = StandardScaler()
-log_return_squared_scaled = scaler.fit_transform(log_return_squared)
+log_return_scaled = scaler.fit_transform(log_return_squared)
 
 seq_len = 10
 x = []
 y = []
 
-for i in range(len(log_return_squared_scaled) - seq_len):
-    x.append(log_return_squared_scaled[i:i + seq_len])
-    y.append(log_return_squared_scaled[i + seq_len])
+for i in range(len(log_return_scaled) - seq_len):
+    x.append(log_return_scaled[i:i + seq_len])
+    y.append(log_return_scaled[i + seq_len])
 
 x = np.array(x)
 y = np.array(y)
@@ -37,19 +40,19 @@ input_layer = Input(shape=(seq_len, 1))
 lstm_out = LSTM(32, return_sequences=True)(input_layer)
 score = Dense(1)(lstm_out)
 attention_weights = softmax(score, axis=1)
-context_vector = Lambda(lambda x: tf.reduce_sum(x[0] * x[1], axis=1))([attention_weights, lstm_out])
+context_vector = AttentionSum()([attention_weights, lstm_out])
 output = Dense(1)(context_vector)
 
 model = Model(inputs=input_layer, outputs=output)
 model.compile(optimizer='adam', loss='mse')
 model.fit(x, y, epochs=30, batch_size=32, verbose=1)
 
-model.save("models/attention_model.h5")
+model.save("models/attention_model.keras")
 
 preds = model.predict(x).squeeze()
 true = y.squeeze()
 
-target_dates = data.index[-len(log_return_squared_scaled):][seq_len:]
+target_dates = data.index[-len(log_return_scaled):][seq_len:]
 
 preds_unscaled = np.sqrt(scaler.inverse_transform(preds.reshape(-1, 1)).flatten())
 true_unscaled = np.sqrt(scaler.inverse_transform(true.reshape(-1, 1)).flatten())
