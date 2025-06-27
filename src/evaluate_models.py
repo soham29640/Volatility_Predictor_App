@@ -16,28 +16,35 @@ model_files = {
 }
 
 results = []
-
 aligned_index = true_df.index[10:]
 true_aligned = true_df.loc[aligned_index]["true_volatility"].values
 
 for model_name, filename in model_files.items():
     pred_path = os.path.join(prediction_dir, filename)
+    if not os.path.exists(pred_path):
+        continue
+
     pred_df = pd.read_csv(pred_path, parse_dates=["date"])
     pred_df.set_index("date", inplace=True)
 
-    pred_aligned = pred_df.loc[aligned_index]["predicted_volatility"].values
+    merged = true_df.join(pred_df, how="inner")  # aligns on date
+    if merged.empty or "predicted_volatility" not in merged:
+        continue
 
-    mse = mean_squared_error(true_aligned, pred_aligned)
+    true_vals = merged["true_volatility"].values
+    pred_vals = merged["predicted_volatility"].values
+
+    mse = mean_squared_error(true_vals, pred_vals)
     rmse = np.sqrt(mse)
-    mae = mean_absolute_error(true_aligned, pred_aligned)
+    mae = mean_absolute_error(true_vals, pred_vals)
 
     results.append({
         "Model": model_name,
-        "MSE": mse,
-        "RMSE": rmse,
-        "MAE": mae
+        "MSE": round(mse, 6),
+        "RMSE": round(rmse, 6),
+        "MAE": round(mae, 6)
     })
 
 results_df = pd.DataFrame(results)
-print(results_df)
-results_df.to_csv("outputs/predictions/evaluation_metrics.csv", index=False)
+print(results_df.to_string(index=False))
+results_df.to_csv(os.path.join(prediction_dir, "evaluation_metrics.csv"), index=False)

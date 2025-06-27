@@ -8,18 +8,9 @@ log_return = data['log_return'].dropna().values.reshape(-1, 1)
 
 model = arch_model(log_return,vol = 'GARCH', p=1,q=1)
 model_fit = model.fit(disp = 'off')
-# disp='off': Disables printing optimization output during fitting.
 print(model_fit.summary())
 
 forecast = model_fit.forecast(horizon=10)
-# forecast is an object of type arch.univariate.base.ARCHModelForecast, and
-# it contains 3 main components(as attributes).
-# | Attribute                    | Meaning                             |
-# | ---------------------------- | ----------------------------------- |
-# | `forecast.variance`          | Forecasted variances (as DataFrame) |
-# | `forecast.mean`              | Forecasted mean values (if modeled) |
-# | `forecast.residual_variance` | Forecasted residual variances       |
-# These are usually returned as pandas DataFrames.
 
 seq_len = 10
 

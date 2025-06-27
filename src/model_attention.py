@@ -17,18 +17,18 @@ tf.random.set_seed(SEED)
 
 data = pd.read_csv("data/processed/returns.csv", index_col=0, parse_dates=True)
 log_return = data['log_return'].dropna().values.reshape(-1, 1)
-log_return_squared = log_return**2
+log_return_squared = log_return ** 2
 
 scaler = StandardScaler()
-log_return_squired_scaled = scaler.fit_transform(log_return_squared)
+log_return_squared_scaled = scaler.fit_transform(log_return_squared)
 
 seq_len = 10
 x = []
 y = []
 
-for i in range(len(log_return_squired_scaled) - seq_len):
-    x.append(log_return_squired_scaled[i:i + seq_len])
-    y.append(log_return_squired_scaled[i + seq_len])
+for i in range(len(log_return_squared_scaled) - seq_len):
+    x.append(log_return_squared_scaled[i:i + seq_len])
+    y.append(log_return_squared_scaled[i + seq_len])
 
 x = np.array(x)
 y = np.array(y)
@@ -42,43 +42,35 @@ output = Dense(1)(context_vector)
 
 model = Model(inputs=input_layer, outputs=output)
 model.compile(optimizer='adam', loss='mse')
-
 model.fit(x, y, epochs=30, batch_size=32, verbose=1)
+
+model.save("models/attention_model.h5")
 
 preds = model.predict(x).squeeze()
 true = y.squeeze()
 
-target_dates = data.index[-len(log_return_squired_scaled):][seq_len:]
+target_dates = data.index[-len(log_return_squared_scaled):][seq_len:]
+
+preds_unscaled = np.sqrt(scaler.inverse_transform(preds.reshape(-1, 1)).flatten())
+true_unscaled = np.sqrt(scaler.inverse_transform(true.reshape(-1, 1)).flatten())
+
+threshold = np.percentile(preds_unscaled, 75)
+risk_level = ["High Risk" if vol > threshold else "Low Risk" for vol in preds_unscaled]
 
 attention_df = pd.DataFrame({
-    "predicted_volatility": preds
+    "predicted_volatility": preds_unscaled,
 }, index=target_dates)
 attention_df.index.name = "date"
 attention_df.to_csv("outputs/predictions/attention_predictions.csv")
 
-threshold = np.percentile(preds, 75)
-risk_level = ["High Risk" if vol > threshold else "Low Risk" for vol in preds]
-
-risk_df = pd.DataFrame({
-    "predicted_volatility": preds,
-    "risk_level": risk_level
-}, index=target_dates)
-risk_df.index.name = "date"
-risk_df.to_csv("outputs/predictions/attention_predictions_with_risk.csv")
-
 fig, ax = plt.subplots(figsize=(12, 6))
-ax.plot(true[-100:], label="Actual Volatility", color="blue")
-ax.plot(preds[-100:], label="Predicted Volatility", color="red")
-ax.set_title("Volatility Prediction with Attention (TensorFlow)")
+ax.plot(true_unscaled[-100:], label="Actual Volatility", color="blue")
+ax.plot(preds_unscaled[-100:], label="Predicted Volatility", color="red")
+ax.set_title("Volatility Prediction with LSTM + Attention")
+ax.set_ylabel("Unscaled Volatility")
 ax.legend()
 ax.grid(True)
 ax.tick_params(axis='x', rotation=45)
 fig.tight_layout()
 fig.savefig("outputs/plots/attention_volatility_plot.png")
 plt.show()
-
-from predict_risk import predict_tomorrow_risk
-
-predicted_vol, risk_level = predict_tomorrow_risk(model, log_return_squired_scaled, preds,10)
-print("Predicted Volatility for Tomorrow:", predicted_vol)
-print("Predicted Risk Level:", risk_level)

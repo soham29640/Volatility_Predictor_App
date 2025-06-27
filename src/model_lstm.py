@@ -34,10 +34,10 @@ y = np.array(y)
 model = Sequential()
 model.add(LSTM(32, input_shape=(seq_len, 1)))
 model.add(Dense(1))
-
 model.compile(optimizer='adam', loss='mse')
-
 history = model.fit(X, y, epochs=50, batch_size=16, verbose=1)
+
+model.save("models/lstm_model.h5")
 
 predicted_vol = model.predict(X)
 preds = predicted_vol.flatten()
@@ -45,40 +45,27 @@ true = y.flatten()
 
 target_dates = data.index[-len(log_return_scaled):][seq_len:]
 
+preds_unscaled = scaler.inverse_transform(np.sqrt(preds).reshape(-1, 1)).flatten()
+true_unscaled = scaler.inverse_transform(np.sqrt(true).reshape(-1, 1)).flatten()
+
 lstm_df = pd.DataFrame({
-    "predicted_volatility" : preds
+    "predicted_volatility": preds_unscaled
 }, index=target_dates)
 lstm_df.index.name = "date"
 lstm_df.to_csv("outputs/predictions/lstm_predictions.csv")
 
-
-threshold = np.percentile(preds, 75)
-risk_level = ["High Risk" if vol > threshold else "Low Risk" for vol in preds]
-
-risk_df = pd.DataFrame({
-    "predicted_volatility": preds,
-    "risk_level": risk_level
-}, index=target_dates)
-risk_df.index.name = "date"
-risk_df.to_csv("outputs/predictions/lstm_predictions_with_risk.csv")
-
+threshold = np.percentile(preds_unscaled, 75)
+risk_level = ["High Risk" if vol > threshold else "Low Risk" for vol in preds_unscaled]
 
 plt.figure(figsize=(12, 6))
-plt.plot(true, label="Actual Volatility", color="black")
-plt.plot(preds, label="Predicted Volatility (LSTM)", color="green")
+plt.plot(true_unscaled, label="Actual Volatility", color="black")
+plt.plot(preds_unscaled, label="Predicted Volatility (LSTM)", color="green")
 plt.title("LSTM Volatility Prediction")
 plt.xlabel("Time Steps")
-plt.ylabel("Scaled Squared Return")
+plt.ylabel("Unscaled Volatility")
 plt.legend()
 plt.grid(True)
 plt.tick_params(axis='x', rotation=45)
 plt.tight_layout()
 plt.savefig("outputs/plots/lstm_volatility_plot.png")
 plt.show()
-
-
-from predict_risk import predict_tomorrow_risk
-
-predicted_vol, risk_level = predict_tomorrow_risk(model, log_return_scaled, preds,10)
-print("Predicted Volatility for Tomorrow:", predicted_vol)
-print("Predicted Risk Level:", risk_level)
