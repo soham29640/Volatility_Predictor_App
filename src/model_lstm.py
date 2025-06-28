@@ -1,72 +1,78 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-import random
-import os
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+import matplotlib.pyplot as plt
 import tensorflow as tf
+import os
 
-SEED = 42
-os.environ['PYTHONHASHSEED'] = str(SEED)
-random.seed(SEED)
-np.random.seed(SEED)
-tf.random.set_seed(SEED)
+data = pd.read_csv("data/raw/AAPL.csv", index_col=0, parse_dates=True)
+data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
+data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
+data.dropna(subset=['log_return'], inplace=True)
 
-data = pd.read_csv("data/processed/returns.csv", index_col=0, parse_dates=True)
-log_return = data['log_return'].dropna().values.reshape(-1, 1)
+log_return = data['log_return'].values.reshape(-1, 1)
+log_return_squared = log_return ** 2
 
-scaler = MinMaxScaler()
-log_return_scaled = scaler.fit_transform(log_return)
+scaler_X = MinMaxScaler()
+log_return_scaled = scaler_X.fit_transform(log_return)
 
-X = []
-y = []
+scaler_y = StandardScaler()
+log_return_squared_scaled = scaler_y.fit_transform(log_return_squared)
+
 seq_len = 10
-
+X, y = [], []
 for i in range(len(log_return_scaled) - seq_len):
     X.append(log_return_scaled[i:i+seq_len])
-    y.append(log_return_scaled[i + seq_len] ** 2)
+    y.append(log_return_squared_scaled[i + seq_len])
 
-X = np.array(X)
-y = np.array(y)
+X, y = np.array(X), np.array(y)
 
-model = Sequential()
-model.add(LSTM(32, input_shape=(seq_len, 1)))
-model.add(Dense(1))
+split = int(len(X) * 0.8)
+X_train, X_test = X[:split], X[split:]
+y_train, y_test = y[:split], y[split:]
+
+model = Sequential([
+    LSTM(64, input_shape=(seq_len, 1), return_sequences=False),
+    Dropout(0.2),
+    Dense(1)
+])
+
 model.compile(optimizer='adam', loss='mse')
-history = model.fit(X, y, epochs=50, batch_size=16, verbose=1)
+model.fit(X_train, y_train, epochs=30, batch_size=16, validation_split=0.1, verbose=1)
 
-model.save("models/lstm_model.h5")
+preds = model.predict(X_test)
+
+preds_rescaled = scaler_y.inverse_transform(preds.reshape(-1, 1))
+preds_rescaled = np.maximum(preds_rescaled, 0)
+preds_unscaled = np.sqrt(preds_rescaled).flatten()
+
+true_rescaled = scaler_y.inverse_transform(y_test.reshape(-1, 1))
+true_rescaled = np.maximum(true_rescaled, 0)
+true_unscaled = np.sqrt(true_rescaled).flatten()
+
+print("Sample raw preds:", preds[:5].flatten())
+print("Sample rescaled preds:", preds_rescaled[:5].flatten())
+print("Sample unscaled volatility preds:", preds_unscaled[:5])
+
+plt.figure(figsize=(10, 5))
+plt.plot(true_unscaled, label="True Volatility")
+plt.plot(preds_unscaled, label="Predicted Volatility")
+plt.legend()
+plt.title("LSTM Volatility Prediction")
+os.makedirs("outputs/plots", exist_ok=True)
+plt.savefig("outputs/plots/lstm_volatility_plot.png")
+
+os.makedirs("models", exist_ok=True)
 model.save("models/lstm_model.keras")
 
-predicted_vol = model.predict(X)
-preds = predicted_vol.flatten()
-true = y.flatten()
-
-target_dates = data.index[-len(log_return_scaled):][seq_len:]
-
-preds_unscaled = scaler.inverse_transform(np.sqrt(preds).reshape(-1, 1)).flatten()
-true_unscaled = scaler.inverse_transform(np.sqrt(true).reshape(-1, 1)).flatten()
-
-lstm_df = pd.DataFrame({
+prediction_dir = "outputs/predictions"
+os.makedirs(prediction_dir, exist_ok=True)
+dates = data.index[-len(preds_unscaled):]
+pred_df = pd.DataFrame({
+    "date": dates,
+    "true_volatility": true_unscaled,
     "predicted_volatility": preds_unscaled
-}, index=target_dates)
-lstm_df.index.name = "date"
-lstm_df.to_csv("outputs/predictions/lstm_predictions.csv")
-
-threshold = np.percentile(preds_unscaled, 75)
-risk_level = ["High Risk" if vol > threshold else "Low Risk" for vol in preds_unscaled]
-
-plt.figure(figsize=(12, 6))
-plt.plot(true_unscaled, label="Actual Volatility", color="black")
-plt.plot(preds_unscaled, label="Predicted Volatility (LSTM)", color="green")
-plt.title("LSTM Volatility Prediction")
-plt.xlabel("Time Steps")
-plt.ylabel("Unscaled Volatility")
-plt.legend()
-plt.grid(True)
-plt.tick_params(axis='x', rotation=45)
-plt.tight_layout()
-plt.savefig("outputs/plots/lstm_volatility_plot.png")
-plt.show()
+})
+pred_df.to_csv(os.path.join(prediction_dir, "lstm_predictions.csv"), index=False)

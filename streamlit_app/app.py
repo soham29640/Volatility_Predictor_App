@@ -7,10 +7,8 @@ import matplotlib.pyplot as plt
 from arch import arch_model
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import tensorflow as tf
-from tensorflow.keras.models import load_model
 from PIL import Image
-
-# If using custom layers
+from tensorflow.keras.models import load_model
 from tensorflow.keras.layers import Layer
 import tensorflow.keras.backend as K
 
@@ -21,32 +19,21 @@ class AttentionSum(Layer):
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-st.set_page_config(page_title="Volatility Risk Dashboard", layout="wide")
-st.title("📈 Stock Volatility Prediction App")
+st.set_page_config(page_title="📊 Volatility Risk Dashboard", layout="wide")
+st.title("📈 Stock Volatility Forecast & Risk Analysis")
 
 st.markdown("""
-### 📁 How to Use
-Upload a `.csv` file containing historical stock data.
+### 🔎 Overview
+This dashboard forecasts and compares the volatility of a given stock using:
+- GARCH (Generalized Autoregressive Conditional Heteroskedasticity)
+- LSTM (Long Short-Term Memory neural network)
+- Attention-based LSTM
 
-The app will:
-- Compute : log_return = ln(Close / Close_previous_day)
-- Predict the stock's **future volatility** using **GARCH, LSTM, and Attention-LSTM**
-- Compare predicted volatility against the 75th percentile threshold
-- Assess the risk based on this threshold
-
----
-
-### 📊 Example of Required CSV Format
-
-| Date       | Open   | High   | Low    | Close  | Volume | 
-|------------|--------|--------|--------|--------|--------|
-| 2023-01-01 | 100.0  | 105.0  | 99.0   | 104.0  | 50000  |
-| 2023-01-02 | 104.0  | 108.0  | 102.0  | 107.5  | 52000  | 
+Each model predicts next-day volatility. These predictions are compared to the 75th percentile of historical volatility to determine risk.
 """)
 
-# Sidebar
-st.sidebar.header("Settings")
-num_days = st.sidebar.slider("Select number of past days to use", min_value=100, max_value=2000, value=500, step=50)
+st.sidebar.header("⚙️ Settings")
+num_days = st.sidebar.slider("Select number of past days to use", min_value=0, max_value=1000, value=500, step=50)
 
 st.sidebar.header("📤 Upload Returns Data")
 file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
@@ -66,91 +53,92 @@ st.dataframe(data.tail(10))
 
 log_return = data['log_return'].values.reshape(-1, 1)
 log_return_squared = log_return ** 2
+threshold = np.percentile(log_return_squared, 75)
 
-# Threshold based on actual log return std
-historical_volatility = pd.Series(log_return.squeeze()).rolling(20).std().dropna()
-threshold = np.percentile(historical_volatility, 75)
-
-# Scaling
 scaler_minmax = MinMaxScaler()
 scaled_minmax = scaler_minmax.fit_transform(log_return)
 
 scaler_standard = StandardScaler()
-scaled_standard = scaler_standard.fit_transform(log_return_squared)
+scaled_standard = scaler_standard.fit_transform(log_return)
+
+scaler_squared_minmax = MinMaxScaler()
+scaled_squared_minmax = scaler_squared_minmax.fit_transform(log_return_squared)
+
+scaler_squared_standard = StandardScaler()
+scaled_squared_standard = scaler_squared_standard.fit_transform(log_return_squared)
 
 seq_len = 10
 X_lstm, y_lstm, X_attn, y_attn = [], [], [], []
 
 for i in range(len(scaled_minmax) - seq_len):
     X_lstm.append(scaled_minmax[i:i+seq_len])
-    y_lstm.append(scaled_minmax[i + seq_len] ** 2)
+    y_lstm.append(scaled_squared_minmax[i + seq_len])
 
 for i in range(len(scaled_standard) - seq_len):
     X_attn.append(scaled_standard[i:i+seq_len])
-    y_attn.append(scaled_standard[i + seq_len])
+    y_attn.append(scaled_squared_standard[i + seq_len])
 
 X_lstm, y_lstm = np.array(X_lstm), np.array(y_lstm)
 X_attn, y_attn = np.array(X_attn), np.array(y_attn)
 
-# === GARCH ===
+LOW_RISK_LABEL = "🟢 Low Risk"
+HIGH_RISK_LABEL = "🔴 High Risk"
+
+lstm_model = load_model("models/lstm_model.keras", safe_mode=False)
+X_next_lstm = scaled_minmax[-seq_len:].reshape(1, seq_len, 1)
+pred_lstm_next = lstm_model.predict(X_next_lstm)
+pred_lstm_rescaled = np.clip(scaler_squared_minmax.inverse_transform(pred_lstm_next), 0, None)
+lstm_next_vol = np.sqrt(pred_lstm_rescaled)[0][0]
+lstm_risk = HIGH_RISK_LABEL if lstm_next_vol > threshold else LOW_RISK_LABEL
+
+
+attn_model = load_model("models/attention_model.keras", custom_objects={"AttentionSum": AttentionSum}, safe_mode=False)
+X_next_attn = scaled_standard[-seq_len:].reshape(1, seq_len, 1)
+pred_attn_next = attn_model.predict(X_next_attn)
+pred_attn_rescaled = np.clip(scaler_squared_standard.inverse_transform(pred_attn_next), 0, None)
+attn_next_vol = np.sqrt(pred_attn_rescaled)[0][0]
+attn_risk = HIGH_RISK_LABEL if attn_next_vol > threshold else LOW_RISK_LABEL
+
+
 garch_model = arch_model(log_return.squeeze(), vol='GARCH', p=1, q=1)
 garch_fit = garch_model.fit(disp='off')
-garch_forecast = garch_fit.forecast(horizon=10)
-garch_variance = garch_forecast.variance.iloc[-1]
-garch_vol = np.sqrt(garch_variance)
-garch_next_vol = garch_vol.iloc[0]
-garch_risk = "🔴 High Risk" if garch_next_vol > threshold else "🟢 Low Risk"
+garch_forecast = garch_fit.forecast(horizon=1)
+garch_next_vol = np.sqrt(garch_forecast.variance.values[-1][0])
+garch_risk = HIGH_RISK_LABEL if garch_next_vol > threshold else LOW_RISK_LABEL
 
-# === LSTM ===
-lstm_model = load_model("models/lstm_model.keras", safe_mode=False)
-preds_lstm = lstm_model.predict(X_lstm).flatten()
-preds_lstm_unscaled = np.sqrt(scaler_minmax.inverse_transform(preds_lstm.reshape(-1, 1))).flatten()
-lstm_next_vol = preds_lstm_unscaled[-1]
-lstm_risk = "🔴 High Risk" if lstm_next_vol > threshold else "🟢 Low Risk"
 
-# === Attention-LSTM ===
-attn_model = load_model("models/attention_model.keras", custom_objects={"AttentionSum": AttentionSum}, safe_mode=False)
-preds_attn = attn_model.predict(X_attn).flatten()
-preds_attn_unscaled = np.sqrt(scaler_standard.inverse_transform(preds_attn.reshape(-1, 1))).flatten()
-attn_next_vol = preds_attn_unscaled[-1]
-attn_risk = "🔴 High Risk" if attn_next_vol > threshold else "🟢 Low Risk"
+fig, ax = plt.subplots(figsize=(12, 5))
+ax.plot(data.index[-100:], data['log_return'].rolling(window=20).std().dropna()[-100:], label="📉 Historical Volatility")
+ax.axhline(y=lstm_next_vol, color='blue', linestyle=':', label='🔵 LSTM Forecast')
+ax.axhline(y=attn_next_vol, color='orange', linestyle=':', label='🟠 Attention-LSTM Forecast')
+ax.axhline(y=garch_next_vol, color='green', linestyle=':', label='🟢 GARCH Forecast')
+ax.axhline(y=threshold, color='red', linestyle='--', label='🔺 75% Threshold')
+ax.set_title("📈 Volatility Forecast vs Historical")
+ax.set_ylabel("Volatility")
+ax.set_xlabel("Date")
+ax.legend()
+fig.tight_layout()
+st.pyplot(fig)
 
-# === Plotting ===
+st.subheader("📌 Forecast Summary")
+st.write(f"🔵 LSTM Next Volatility: **{lstm_next_vol:.6f}** — {lstm_risk}")
+st.write(f"🟠 Attention-LSTM Next Volatility: **{attn_next_vol:.6f}** — {attn_risk}")
+st.write(f"🟢 GARCH Next Volatility: **{garch_next_vol:.6f}** — {garch_risk}")
 
-st.subheader("📊 LSTM Prediction vs Threshold")
-fig1, ax1 = plt.subplots(figsize=(12, 4))
-ax1.plot(preds_lstm_unscaled[-100:], label='LSTM Predicted Volatility')
-ax1.axhline(threshold, color='red', linestyle='--', label='75% Threshold')
-ax1.axhline(lstm_next_vol, color='blue', linestyle=':', label="Next Prediction")
-ax1.legend()
-ax1.set_title("LSTM Volatility Forecast")
-st.pyplot(fig1)
-st.write(f"📈 Next LSTM Volatility: **{lstm_next_vol:.6f}** — {lstm_risk}")
+st.subheader("📊 Model Evaluation")
+st.markdown("""
+The chart below compares the performance of each model based on three metrics:
 
-st.subheader("📊 Attention-LSTM Prediction vs Threshold")
-fig2, ax2 = plt.subplots(figsize=(12, 4))
-ax2.plot(preds_attn_unscaled[-100:], label='Attention-LSTM Predicted Volatility', color='orange')
-ax2.axhline(threshold, color='red', linestyle='--', label='75% Threshold')
-ax2.axhline(attn_next_vol, color='blue', linestyle=':', label="Next Prediction")
-ax2.legend()
-ax2.set_title("Attention-LSTM Volatility Forecast")
-st.pyplot(fig2)
-st.write(f"📈 Next Attention-LSTM Volatility: **{attn_next_vol:.6f}** — {attn_risk}")
+- **MSE (Mean Squared Error)**: Penalizes larger errors more heavily
+- **RMSE (Root Mean Squared Error)**: Interpretable in the same units as volatility
+- **MAE (Mean Absolute Error)**: Averages the absolute differences between predicted and actual volatility
 
-st.subheader("📊 GARCH Prediction vs Threshold")
-fig3, ax3 = plt.subplots(figsize=(12, 4))
-ax3.plot(historical_volatility[-100:].values, label='Historical Volatility')
-ax3.axhline(threshold, color='red', linestyle='--', label='75% Threshold')
-ax3.axhline(garch_next_vol, color='blue', linestyle=':', label="Next Prediction")
-ax3.legend()
-ax3.set_title("GARCH Volatility Forecast")
-st.pyplot(fig3)
-st.write(f"📈 Next GARCH Volatility: **{garch_next_vol:.6f}** — {garch_risk}")
+📌 **How to use this**:
+- Lower values generally indicate a better-performing model.
+- Use this chart to understand each model’s accuracy before relying solely on its prediction.
+- Combine this with the forecast graph above for a balanced decision.
 
-# === Evaluation Image ===
-st.subheader("📉 Model Evaluation")
-image = Image.open("outputs/plots/model_rmse_comparison.png")
-st.image(image, caption="RMSE Comparison of GARCH, LSTM, and Attention-LSTM", use_column_width=True)
-
-st.markdown("---")
-st.caption("Built with GARCH, LSTM, and Attention-based LSTM models")
+⚠️ Keep in mind that while one model may perform slightly better statistically, it may not always generalize well in live market conditions.
+""")
+eval_img = Image.open("outputs/plots/evaluation.png")
+st.image(eval_img, caption="📉 RMSE, MSE, and MAE Comparison for GARCH, LSTM, and Attention-LSTM", use_column_width=True)

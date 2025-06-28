@@ -6,8 +6,8 @@ import os
 prediction_dir = "outputs/predictions"
 true_values_path = os.path.join(prediction_dir, "true_values.csv")
 
-true_df = pd.read_csv(true_values_path, parse_dates=["date"])
-true_df.set_index("date", inplace=True)
+true_df = pd.read_csv(true_values_path, parse_dates=["Date"])
+true_df.set_index("Date", inplace=True)
 
 model_files = {
     "GARCH": "garch_predictions.csv",
@@ -16,8 +16,6 @@ model_files = {
 }
 
 results = []
-aligned_index = true_df.index[10:]
-true_aligned = true_df.loc[aligned_index]["true_volatility"].values
 
 for model_name, filename in model_files.items():
     pred_path = os.path.join(prediction_dir, filename)
@@ -27,8 +25,13 @@ for model_name, filename in model_files.items():
     pred_df = pd.read_csv(pred_path, parse_dates=["date"])
     pred_df.set_index("date", inplace=True)
 
-    merged = true_df.join(pred_df, how="inner")  # aligns on date
-    if merged.empty or "predicted_volatility" not in merged:
+    if "true_volatility" in pred_df.columns:
+        pred_df = pred_df.drop(columns=["true_volatility"])
+
+    merged = true_df.join(pred_df, how="inner")
+    merged.dropna(subset=["true_volatility", "predicted_volatility"], inplace=True)
+
+    if merged.empty:
         continue
 
     true_vals = merged["true_volatility"].values
