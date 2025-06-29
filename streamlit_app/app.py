@@ -77,13 +77,13 @@ X_attn, y_attn = np.array(X_attn), np.array(y_attn)
 LOW_RISK_LABEL = "🟢 Low Risk"
 HIGH_RISK_LABEL = "🔴 High Risk"
 
-lstm_model = load_model("models/lstm_model.keras", safe_mode=False)
+lstm_model = load_model("models/lstm_model.keras")
 X_next_lstm = scaled_standard[-seq_len:].reshape(1, seq_len, 1)
 pred_lstm_next = lstm_model.predict(X_next_lstm)
 pred_lstm_rescaled = np.clip(scaler_squared_standard.inverse_transform(pred_lstm_next), 0, None)
 lstm_next_vol = np.sqrt(pred_lstm_rescaled)[0][0]
 
-attn_model = load_model("models/attention_model.keras", custom_objects={"AttentionSum": AttentionSum}, safe_mode=False)
+attn_model = load_model("models/attention_model.keras", custom_objects={"AttentionSum": AttentionSum})
 X_next_attn = scaled_standard[-seq_len:].reshape(1, seq_len, 1)
 pred_attn_next = attn_model.predict(X_next_attn)
 pred_attn_rescaled = np.clip(scaler_squared_standard.inverse_transform(pred_attn_next), 0, None)
