@@ -60,7 +60,7 @@ os.makedirs("outputs/plots", exist_ok=True)
 plt.savefig("outputs/plots/lstm_volatility_plot.png")
 
 os.makedirs("models", exist_ok=True)
-model.save("models/lstm_model.keras")
+model.save("models/lstm_model.h5")
 
 prediction_dir = "outputs/predictions"
 os.makedirs(prediction_dir, exist_ok=True)

@@ -75,7 +75,7 @@ plt.legend()
 plt.title("Attention Volatility Prediction")
 plt.savefig("outputs/plots/attention_volatility_plot.png")
 
-model.save("models/attention_model.keras")
+model.save("models/attention_model.h5")
 
 prediction_dir = "outputs/predictions"
 os.makedirs(prediction_dir, exist_ok=True)
