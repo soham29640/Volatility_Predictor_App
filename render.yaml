@@ -6,6 +6,6 @@ services:
     startCommand: streamlit run src/app.py --server.port=10000 --server.address=0.0.0.0
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10
+        value: 3.10.13
     plan: free
     autoDeploy: true
