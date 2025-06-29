@@ -94,7 +94,9 @@ garch_fit = garch_model.fit(disp='off')
 garch_forecast = garch_fit.forecast(horizon=1)
 garch_next_vol = np.sqrt(garch_forecast.variance.values[-1][0])
 
-vol_history = np.sqrt(scaler_squared_standard.inverse_transform(scaled_squared_standard[-200:]))
+rolling_window = min(num_days, len(log_return_squared))
+threshold_days = min(rolling_window, len(scaled_squared_standard))
+vol_history = np.sqrt(scaler_squared_standard.inverse_transform(scaled_squared_standard[-threshold_days:]))
 threshold = np.percentile(vol_history, 75)
 
 lstm_risk = HIGH_RISK_LABEL if lstm_next_vol > threshold else LOW_RISK_LABEL

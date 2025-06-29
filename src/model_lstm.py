@@ -35,7 +35,6 @@ y_train, y_test = y[:split], y[split:]
 
 model = Sequential([
     LSTM(64, input_shape=(seq_len, 1), return_sequences=False),
-    Dropout(0.2),
     Dense(1)
 ])
 
