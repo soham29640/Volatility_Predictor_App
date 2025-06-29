@@ -5,7 +5,7 @@ import sys
 import os
 import matplotlib.pyplot as plt
 from arch import arch_model
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 from PIL import Image
 from tensorflow.keras.models import load_model
@@ -33,7 +33,7 @@ Each model predicts next-day volatility. These predictions are compared to the 7
 """)
 
 st.sidebar.header("⚙️ Settings")
-num_days = st.sidebar.slider("Select number of past days to use", min_value=0, max_value=1000, value=500, step=50)
+num_days = st.sidebar.slider("Select number of past days to use", min_value=150, max_value=250, value=200, step=10)
 
 st.sidebar.header("📤 Upload Returns Data")
 file = st.sidebar.file_uploader("Upload returns.csv", type=["csv"])
@@ -53,16 +53,9 @@ st.dataframe(data.tail(10))
 
 log_return = data['log_return'].values.reshape(-1, 1)
 log_return_squared = log_return ** 2
-threshold = np.percentile(log_return_squared, 75)
-
-scaler_minmax = MinMaxScaler()
-scaled_minmax = scaler_minmax.fit_transform(log_return)
 
 scaler_standard = StandardScaler()
 scaled_standard = scaler_standard.fit_transform(log_return)
-
-scaler_squared_minmax = MinMaxScaler()
-scaled_squared_minmax = scaler_squared_minmax.fit_transform(log_return_squared)
 
 scaler_squared_standard = StandardScaler()
 scaled_squared_standard = scaler_squared_standard.fit_transform(log_return_squared)
@@ -70,9 +63,9 @@ scaled_squared_standard = scaler_squared_standard.fit_transform(log_return_squar
 seq_len = 10
 X_lstm, y_lstm, X_attn, y_attn = [], [], [], []
 
-for i in range(len(scaled_minmax) - seq_len):
-    X_lstm.append(scaled_minmax[i:i+seq_len])
-    y_lstm.append(scaled_squared_minmax[i + seq_len])
+for i in range(len(scaled_standard) - seq_len):
+    X_lstm.append(scaled_standard[i:i+seq_len])
+    y_lstm.append(scaled_squared_standard[i + seq_len])
 
 for i in range(len(scaled_standard) - seq_len):
     X_attn.append(scaled_standard[i:i+seq_len])
@@ -85,34 +78,35 @@ LOW_RISK_LABEL = "🟢 Low Risk"
 HIGH_RISK_LABEL = "🔴 High Risk"
 
 lstm_model = load_model("models/lstm_model.keras", safe_mode=False)
-X_next_lstm = scaled_minmax[-seq_len:].reshape(1, seq_len, 1)
+X_next_lstm = scaled_standard[-seq_len:].reshape(1, seq_len, 1)
 pred_lstm_next = lstm_model.predict(X_next_lstm)
-pred_lstm_rescaled = np.clip(scaler_squared_minmax.inverse_transform(pred_lstm_next), 0, None)
+pred_lstm_rescaled = np.clip(scaler_squared_standard.inverse_transform(pred_lstm_next), 0, None)
 lstm_next_vol = np.sqrt(pred_lstm_rescaled)[0][0]
-lstm_risk = HIGH_RISK_LABEL if lstm_next_vol > threshold else LOW_RISK_LABEL
-
 
 attn_model = load_model("models/attention_model.keras", custom_objects={"AttentionSum": AttentionSum}, safe_mode=False)
 X_next_attn = scaled_standard[-seq_len:].reshape(1, seq_len, 1)
 pred_attn_next = attn_model.predict(X_next_attn)
 pred_attn_rescaled = np.clip(scaler_squared_standard.inverse_transform(pred_attn_next), 0, None)
 attn_next_vol = np.sqrt(pred_attn_rescaled)[0][0]
-attn_risk = HIGH_RISK_LABEL if attn_next_vol > threshold else LOW_RISK_LABEL
-
 
 garch_model = arch_model(log_return.squeeze(), vol='GARCH', p=1, q=1)
 garch_fit = garch_model.fit(disp='off')
 garch_forecast = garch_fit.forecast(horizon=1)
 garch_next_vol = np.sqrt(garch_forecast.variance.values[-1][0])
-garch_risk = HIGH_RISK_LABEL if garch_next_vol > threshold else LOW_RISK_LABEL
 
+vol_history = np.sqrt(scaler_squared_standard.inverse_transform(scaled_squared_standard[-200:]))
+threshold = np.percentile(vol_history, 75)
+
+lstm_risk = HIGH_RISK_LABEL if lstm_next_vol > threshold else LOW_RISK_LABEL
+attn_risk = HIGH_RISK_LABEL if attn_next_vol > threshold else LOW_RISK_LABEL
+garch_risk = HIGH_RISK_LABEL if garch_next_vol > threshold else LOW_RISK_LABEL
 
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.plot(data.index[-100:], data['log_return'].rolling(window=20).std().dropna()[-100:], label="📉 Historical Volatility")
 ax.axhline(y=lstm_next_vol, color='blue', linestyle=':', label='🔵 LSTM Forecast')
 ax.axhline(y=attn_next_vol, color='orange', linestyle=':', label='🟠 Attention-LSTM Forecast')
 ax.axhline(y=garch_next_vol, color='green', linestyle=':', label='🟢 GARCH Forecast')
-ax.axhline(y=threshold, color='red', linestyle='--', label='🔺 75% Threshold')
+ax.axhline(y=threshold, color='red', linestyle='--', label='🔺 75% Threshold (Volatility)')
 ax.set_title("📈 Volatility Forecast vs Historical")
 ax.set_ylabel("Volatility")
 ax.set_xlabel("Date")

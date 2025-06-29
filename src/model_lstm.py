@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ data.dropna(subset=['log_return'], inplace=True)
 log_return = data['log_return'].values.reshape(-1, 1)
 log_return_squared = log_return ** 2
 
-scaler_X = MinMaxScaler()
+scaler_X = StandardScaler()
 log_return_scaled = scaler_X.fit_transform(log_return)
 
 scaler_y = StandardScaler()
@@ -51,10 +51,6 @@ preds_unscaled = np.sqrt(preds_rescaled).flatten()
 true_rescaled = scaler_y.inverse_transform(y_test.reshape(-1, 1))
 true_rescaled = np.maximum(true_rescaled, 0)
 true_unscaled = np.sqrt(true_rescaled).flatten()
-
-print("Sample raw preds:", preds[:5].flatten())
-print("Sample rescaled preds:", preds_rescaled[:5].flatten())
-print("Sample unscaled volatility preds:", preds_unscaled[:5])
 
 plt.figure(figsize=(10, 5))
 plt.plot(true_unscaled, label="True Volatility")
