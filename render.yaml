@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: volatix-app
-    runtime: python
-    pythonVersion: 3.10.13
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run streamlit_app/app.py --server.port $PORT --server.address 0.0.0.0
-    plan: free
-    autoDeploy: true

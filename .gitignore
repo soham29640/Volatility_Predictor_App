@@ -1,3 +1,4 @@
 myenv/
 *.conda
+__pycache__/
 
